@@ -1,80 +1,78 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Diagnostics;
+using System.Text;
 using System.Threading.Tasks;
-using System.Linq; // LINQ extension methods
+using System.Diagnostics;
+using System.Linq;
 
 namespace FileConcatenator
 {
     class Program
     {
+        private const string OutputFileName = "joined_files.txt";
+        private static readonly string[] SupportedExtensions = { "*.cs", "*.md", "*.js", "*.jsx", "*.ts", "*.sln", "*.html", "*.json" };
+        private static readonly List<string> ExcludedFolderNames = new List<string>
+        {
+            "obj", "bin", "migrations", "dist", "node_modules"
+        };
+        private static readonly List<string> ExcludedFolderNameSubstrings = new List<string>
+        {
+            "jquery", "backup"
+        };
+        private static readonly List<string> ExcludedFileSubstrings = new List<string>
+        {
+            "package"
+        };
+
         static async Task Main(string[] args)
         {
-            string[] fileExtensions = new string[] { "*.cs", "*.md","*.js", "*.jsx","*.ts" }; // Supported extensions
-            string folderPath = Directory.GetCurrentDirectory(); // Current directory
+            string folderPath = Directory.GetCurrentDirectory();
+            SearchOption searchOption = args.Length > 0 && args[0].Equals("false", StringComparison.OrdinalIgnoreCase)
+                ? SearchOption.TopDirectoryOnly
+                : SearchOption.AllDirectories;
 
-            SearchOption searchOption = SearchOption.AllDirectories;
-            if (args.Length > 0 && args[0].Equals("false", StringComparison.OrdinalIgnoreCase))
-            {
-                searchOption = SearchOption.TopDirectoryOnly;
-            }
-            // Define a list of folder names to exclude
-            List<string> excludedFolderNames = new List<string>
-            {
-                "obj", // Add other folder names to exclude here
-                "bin",  // Example: exclude "bin" folder
-                "migrations",
-                "dist",
-                "node_modules"
-            };
+            var combinedContent = new StringBuilder();
 
-
-            // Define a list of substrings to exclude files based on folder name
-            List<string> excludedFolderNameSubstrings = new List<string>
-            {
-                "jquery", // Add substrings to exclude here
-                "backup"  // Example: exclude folders containing "temp" or "backup"
-            };
-
-            string combinedContent = "";
-
-            foreach (var extension in fileExtensions)
+            foreach (var extension in SupportedExtensions)
             {
                 string[] files = Directory.GetFiles(folderPath, extension, searchOption);
 
                 foreach (var file in files)
                 {
                     string parentFolderPath = Path.GetDirectoryName(file);
-
                     string parentFolderName = Path.GetFileName(parentFolderPath);
+                    string fileName = Path.GetFileName(file);
 
-                    // Check if any part of the folder path contains an excluded folder name
-                    if (excludedFolderNames.Any(excludedFolder => parentFolderName.Equals(excludedFolder, StringComparison.OrdinalIgnoreCase)) ||
-                        excludedFolderNameSubstrings.Any(substring => parentFolderName.Contains(substring, StringComparison.OrdinalIgnoreCase)))
+                    if (IsFileExcluded(file, parentFolderName, fileName))
                     {
-                        Console.WriteLine($"Skipping {file} because it's in an excluded folder.");
+                        // Log skipped file here
                         continue;
                     }
 
-                    // Check if any part of the folder path contains an excluded folder name
-                    if (excludedFolderNames.Any(excludedFolder => parentFolderPath.Contains(excludedFolder, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        Console.WriteLine($"Skipping {file} because it's in an excluded folder.");
-                        continue;
-                    }
+                    Console.WriteLine($"Adding {file}");
 
-                    combinedContent += $"File: {file}{Environment.NewLine}{Environment.NewLine}";
-                    combinedContent += await File.ReadAllTextAsync(file) + Environment.NewLine;
-                    combinedContent += $"{Environment.NewLine}--- End of {file} ---{Environment.NewLine}{Environment.NewLine}";
+                    combinedContent.AppendLine($"File: {file}");
+                    combinedContent.AppendLine(await File.ReadAllTextAsync(file));
+                    combinedContent.AppendLine($"--- End of {file} ---");
                 }
             }
-            string myDocumentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string outputFile = Path.Combine(myDocumentsPath, "joined_files.txt");
 
-            await File.WriteAllTextAsync(outputFile, combinedContent);
+            string myDocumentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            string outputFile = Path.Combine(myDocumentsPath, OutputFileName);
+
+            await File.WriteAllTextAsync(outputFile, combinedContent.ToString());
             Process.Start(new ProcessStartInfo(outputFile) { UseShellExecute = true });
 
             Console.WriteLine($"Content written to {outputFile} and opened in default editor.");
+        }
+
+        private static bool IsFileExcluded(string filePath, string parentFolderName, string fileName)
+        {
+            return ExcludedFolderNames.Contains(parentFolderName, StringComparer.OrdinalIgnoreCase) ||
+                   ExcludedFolderNameSubstrings.Any(substring => parentFolderName.Contains(substring, StringComparison.OrdinalIgnoreCase)) ||
+                   ExcludedFileSubstrings.Any(substring => fileName.Contains(substring, StringComparison.OrdinalIgnoreCase)) ||
+                   ExcludedFolderNames.Any(excludedFolder => filePath.Contains(excludedFolder, StringComparison.OrdinalIgnoreCase));
         }
     }
 }
