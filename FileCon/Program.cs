@@ -2,6 +2,7 @@
 using System.IO;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Linq; // LINQ extension methods
 
 namespace FileConcatenator
 {
@@ -9,29 +10,37 @@ namespace FileConcatenator
     {
         static async Task Main(string[] args)
         {
-            string fileExtension = "*.cs"; // Change to your desired extension
+            string[] fileExtensions = new string[] { "*.cs", "*.md" }; // Support for both C# and Markdown files
             string folderPath = Directory.GetCurrentDirectory(); // Current directory
 
-            string[] files = Directory.GetFiles(folderPath, fileExtension);
-            string combinedContent = "";
-
-            foreach (var file in files)
+            SearchOption searchOption = SearchOption.AllDirectories;
+            if (args.Length > 0 && args[0].Equals("false", StringComparison.OrdinalIgnoreCase))
             {
-                combinedContent += await File.ReadAllTextAsync(file) + Environment.NewLine;
+                searchOption = SearchOption.TopDirectoryOnly;
             }
 
-            // Define the output file path in the user's "My Documents" folder
+            string combinedContent = "";
+
+            foreach (var extension in fileExtensions)
+            {
+                string[] files = Directory.GetFiles(folderPath, extension, searchOption);
+                files = files.Where(file => !file.Contains(@"\obj\")).ToArray();
+
+                foreach (var file in files)
+                {
+                    combinedContent += $"File: {file}{Environment.NewLine}{Environment.NewLine}";
+                    combinedContent += await File.ReadAllTextAsync(file) + Environment.NewLine;
+                    combinedContent += $"{Environment.NewLine}--- End of {file} ---{Environment.NewLine}{Environment.NewLine}";
+                }
+            }
+
             string myDocumentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string outputFile = Path.Combine(myDocumentsPath, "join.txt");
+            string outputFile = Path.Combine(myDocumentsPath, "joined_files.txt");
 
-            // Save the combined content to the output file, overwriting if it already exists
             await File.WriteAllTextAsync(outputFile, combinedContent);
-
-            // Open the file in the default editor
             Process.Start(new ProcessStartInfo(outputFile) { UseShellExecute = true });
 
             Console.WriteLine($"Content written to {outputFile} and opened in default editor.");
-            Console.ReadKey();
         }
     }
 }
