@@ -11,10 +11,10 @@ namespace FileConcatenator
     class Program
     {
         private const string OutputFileName = "joined_files.txt";
-        private static readonly string[] SupportedExtensions = { "*.cs", "*.md", "*.js", "*.jsx", "*.ts", "*.sln", "*.html", "*.json" };
+        private static readonly string[] SupportedExtensions = { "*.cs", "*.md", "*.js", "*.jsx", "*.ts", "*.tsx", "*.sln", "*.html", "*.json" };
         private static readonly List<string> ExcludedFolderNames = new List<string>
         {
-            "obj", "bin", "migrations", "dist", "node_modules"
+            "obj", "bin", "migrations", "dist", "node_modules", "packages", ".next"
         };
         private static readonly List<string> ExcludedFolderNameSubstrings = new List<string>
         {
